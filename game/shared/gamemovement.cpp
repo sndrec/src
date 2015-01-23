@@ -58,7 +58,7 @@ ConVar option_duck_method("option_duck_method", "1", FCVAR_REPLICATED|FCVAR_ARCH
 // [MD] I'll remove this eventually. For now, I want the ability to A/B the optimizations.
 bool g_bMovementOptimizations = true;
 //Credit CZF, default ABH
-static ConVar bla_movement("bla_movement", "0",
+static ConVar bla_movement("bla_movement", "1",
                FCVAR_DEMO | FCVAR_REPLICATED | FCVAR_ARCHIVE,
                "Set movement physics.\n0: ABH, 1: bunny-hopping");
 
@@ -872,10 +872,10 @@ void CGameMovement::CheckParameters( void )
 
 		// Slow down by the speed factor
 		float flSpeedFactor = 1.0f;
-		if (player->m_pSurfaceData)
-		{
-			flSpeedFactor = player->m_pSurfaceData->game.maxSpeedFactor;
-		}
+	//	if (player->m_pSurfaceData)
+	//	{
+	//		flSpeedFactor = player->m_pSurfaceData->game.maxSpeedFactor;
+	//	}
 
 		// If we have a constraint, slow down because of that too.
 		float flConstraintSpeedFactor = ComputeConstraintSpeedFactor();
@@ -1604,8 +1604,8 @@ void CGameMovement::AirAccelerate( Vector& wishdir, float wishspeed, float accel
 	accelspeed = accel * wishspeed * gpGlobals->frametime * player->m_surfaceFriction;
 
 	// Cap it
-	if (accelspeed > addspeed)
-		accelspeed = addspeed;
+//	if (accelspeed > addspeed)
+//		accelspeed = addspeed;
 
 	// Adjust pmove vel.
 	for (i=0 ; i<3 ; i++)
@@ -2303,19 +2303,19 @@ bool CGameMovement::CheckJumpButton( void )
 		return false;
 #endif
 
-	if (!(bla_pogo.GetBool() && !dontJump) && mv->m_nOldButtons & IN_JUMP )
-	{
-		if (dontJump)
-		{
-			DevLog("Prevented a consecutive jump.\n");
-		}
+//	if (!(bla_pogo.GetBool() && !dontJump) && mv->m_nOldButtons & IN_JUMP )
+//	{
+//		if (dontJump)
+//		{
+//			DevLog("Prevented a consecutive jump.\n");
+//		}
 
-		return false;		// don't pogo stick
-	}
+//		return false;		// don't pogo stick
+//	}
 
 	// Cannot jump will in the unduck transition.
-	if ( player->m_Local.m_bDucking && (  player->GetFlags() & FL_DUCKING ) )
-		return false;
+//	if ( player->m_Local.m_bDucking && (  player->GetFlags() & FL_DUCKING ) )
+//		return false;
 
 	// Still updating the eye position.
 	if ( player->m_Local.m_flDuckJumpTime > 0.0f )
@@ -2340,8 +2340,8 @@ bool CGameMovement::CheckJumpButton( void )
 	if ( g_bMovementOptimizations )
 	{
 #if defined(HL2_DLL) || defined(HL2_CLIENT_DLL)
-		Assert( sv_gravity.GetFloat() == 600.0f );
-		flMul = 160.0f;	// approx. 21 units.
+		Assert( sv_gravity.GetFloat() == 800.0f );
+		flMul = sqrt(2 * sv_gravity.GetFloat() * GAMEMOVEMENT_JUMP_HEIGHT);
 #else
 		Assert( sv_gravity.GetFloat() == 800.0f );
 		flMul = 268.3281572999747f;
@@ -2417,7 +2417,7 @@ bool CGameMovement::CheckJumpButton( void )
 				vecForward[iAxis] *= (mv->m_flForwardMove * flBoost);
 		}
 		// Add it on
-		VectorAdd( (vecForward), mv->m_vecVelocity, mv->m_vecVelocity );
+//		VectorAdd( (vecForward), mv->m_vecVelocity, mv->m_vecVelocity );
 	}
 #endif
 
@@ -2449,8 +2449,8 @@ bool CGameMovement::CheckJumpButton( void )
 #endif
 
 	// Flag that we jumped.
-	mv->m_nOldButtons |= IN_JUMP;	// don't jump again until released
-	return true;
+//	mv->m_nOldButtons |= IN_JUMP;	// don't jump again until released
+//	return true;
 }
 
 

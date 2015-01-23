@@ -22,7 +22,6 @@ public:
 	DECLARE_CLASS( C_BaseAnimatingOverlay, C_BaseAnimating );
 	DECLARE_CLIENTCLASS();
 	DECLARE_PREDICTABLE();
-	DECLARE_INTERPOLATION();
 
 
 	C_BaseAnimatingOverlay();

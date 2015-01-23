@@ -64,7 +64,6 @@ public:
 	DECLARE_CLASS( C_BasePlayer, C_BaseCombatCharacter );
 	DECLARE_CLIENTCLASS();
 	DECLARE_PREDICTABLE();
-	DECLARE_INTERPOLATION();
 
 	C_BasePlayer();
 	virtual			~C_BasePlayer();

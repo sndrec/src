@@ -46,7 +46,6 @@ class C_BaseFlex : public C_BaseAnimatingOverlay
 public:
 	DECLARE_CLIENTCLASS();
 	DECLARE_PREDICTABLE();
-	DECLARE_INTERPOLATION();
 
 					C_BaseFlex();
 	virtual			~C_BaseFlex();
