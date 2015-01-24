@@ -1604,8 +1604,8 @@ void CGameMovement::AirAccelerate( Vector& wishdir, float wishspeed, float accel
 	accelspeed = accel * wishspeed * gpGlobals->frametime * player->m_surfaceFriction;
 
 	// Cap it
-//	if (accelspeed > addspeed)
-//		accelspeed = addspeed;
+	if (accelspeed > (addspeed * 2))
+		accelspeed = (addspeed * 2);
 
 	// Adjust pmove vel.
 	for (i=0 ; i<3 ; i++)
@@ -2253,10 +2253,10 @@ bool CGameMovement::CheckJumpButton( void )
 	cantJumpNextTime = false;
 
 	if (player->pl.deadflag)
-	{
-		mv->m_nOldButtons |= IN_JUMP ;	// don't jump again until released
-		return false;
-	}
+//	{
+//		mv->m_nOldButtons |= IN_JUMP ;	// don't jump again until released
+//		return false;
+//	}
 
 	// See if we are waterjumping.  If so, decrement count and return.
 	if (player->m_flWaterJumpTime)
