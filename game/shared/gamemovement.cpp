@@ -53,12 +53,12 @@ ConVar player_limit_jump_speed( "player_limit_jump_speed", "1", FCVAR_REPLICATED
 // option_duck_method is a carrier convar. Its sole purpose is to serve an easy-to-flip
 // convar which is ONLY set by the X360 controller menu to tell us which way to bind the
 // duck controls. Its value is meaningless anytime we don't have the options window open.
-ConVar option_duck_method("option_duck_method", "1", FCVAR_REPLICATED|FCVAR_ARCHIVE );// 0 = HOLD to duck, 1 = Duck is a toggle
+ConVar option_duck_method("option_duck_method", "0", FCVAR_REPLICATED|FCVAR_ARCHIVE );// 0 = HOLD to duck, 1 = Duck is a toggle
 
 // [MD] I'll remove this eventually. For now, I want the ability to A/B the optimizations.
 bool g_bMovementOptimizations = true;
 //Credit CZF, default ABH
-static ConVar bla_movement("bla_movement", "1",
+static ConVar bla_movement("bla_movement", "0",
                FCVAR_DEMO | FCVAR_REPLICATED | FCVAR_ARCHIVE,
                "Set movement physics.\n0: ABH, 1: bunny-hopping");
 
@@ -872,10 +872,10 @@ void CGameMovement::CheckParameters( void )
 
 		// Slow down by the speed factor
 		float flSpeedFactor = 1.0f;
-	//	if (player->m_pSurfaceData)
-	//	{
-	//		flSpeedFactor = player->m_pSurfaceData->game.maxSpeedFactor;
-	//	}
+		if (player->m_pSurfaceData)
+		{
+			flSpeedFactor = player->m_pSurfaceData->game.maxSpeedFactor;
+		}
 
 		// If we have a constraint, slow down because of that too.
 		float flConstraintSpeedFactor = ComputeConstraintSpeedFactor();
@@ -2253,10 +2253,10 @@ bool CGameMovement::CheckJumpButton( void )
 	cantJumpNextTime = false;
 
 	if (player->pl.deadflag)
-//	{
-//		mv->m_nOldButtons |= IN_JUMP ;	// don't jump again until released
-//		return false;
-//	}
+	{
+		mv->m_nOldButtons |= IN_JUMP ;	// don't jump again until released
+		return false;
+	}
 
 	// See if we are waterjumping.  If so, decrement count and return.
 	if (player->m_flWaterJumpTime)
@@ -2303,15 +2303,15 @@ bool CGameMovement::CheckJumpButton( void )
 		return false;
 #endif
 
-//	if (!(bla_pogo.GetBool() && !dontJump) && mv->m_nOldButtons & IN_JUMP )
-//	{
-//		if (dontJump)
-//		{
-//			DevLog("Prevented a consecutive jump.\n");
-//		}
+	if (!(bla_pogo.GetBool() && !dontJump) && mv->m_nOldButtons & IN_JUMP )
+	{
+		if (dontJump)
+		{
+			DevLog("Prevented a consecutive jump.\n");
+		}
 
-//		return false;		// don't pogo stick
-//	}
+		return false;		// don't pogo stick
+	}
 
 	// Cannot jump will in the unduck transition.
 //	if ( player->m_Local.m_bDucking && (  player->GetFlags() & FL_DUCKING ) )
@@ -2432,7 +2432,7 @@ bool CGameMovement::CheckJumpButton( void )
 	if ( gpGlobals->maxClients == 1 )
 	{
 		player->m_Local.m_flJumpTime = GAMEMOVEMENT_JUMP_TIME;
-		player->m_Local.m_bInDuckJump = true;
+		player->m_Local.m_bInDuckJump = false;
 	}
 
 #if defined( HL2_DLL )
@@ -2449,8 +2449,8 @@ bool CGameMovement::CheckJumpButton( void )
 #endif
 
 	// Flag that we jumped.
-//	mv->m_nOldButtons |= IN_JUMP;	// don't jump again until released
-//	return true;
+	mv->m_nOldButtons |= IN_JUMP;	// don't jump again until released
+	return true;
 }
 
 
@@ -3842,7 +3842,7 @@ void CGameMovement::FixPlayerCrouchStuck( bool upward )
 		return;
 
 	VectorCopy( mv->GetAbsOrigin(), test );
-	for ( i = 0; i < 36; i++ )
+	for ( i = 0; i < 72; i++ )
 	{
 		Vector org = mv->GetAbsOrigin();
 		org.z += direction;
@@ -3867,16 +3867,16 @@ bool CGameMovement::CanUnduck()
 	{
 		for ( i = 0; i < 3; i++ )
 		{
-			newOrigin[i] += ( VEC_DUCK_HULL_MIN[i] - VEC_HULL_MIN[i] );
+			newOrigin[i] += ( VEC_DUCK_HULL_MIN[i] + VEC_HULL_MIN[i] );
 		}
 	}
 	else
 	{
 		// If in air an letting go of crouch, make sure we can offset origin to make
 		//  up for uncrouching
-		Vector hullSizeNormal = VEC_HULL_MAX - VEC_HULL_MIN;
-		Vector hullSizeCrouch = VEC_DUCK_HULL_MAX - VEC_DUCK_HULL_MIN;
-		Vector viewDelta = ( hullSizeNormal - hullSizeCrouch );
+		Vector hullSizeNormal = VEC_HULL_MAX + VEC_HULL_MIN;
+		Vector hullSizeCrouch = VEC_DUCK_HULL_MAX + VEC_DUCK_HULL_MIN;
+		Vector viewDelta = ( hullSizeNormal + 36 );
 		viewDelta.Negate();
 		VectorAdd( newOrigin, viewDelta, newOrigin );
 	}
@@ -4106,12 +4106,12 @@ bool CGameMovement::CanUnDuckJump( trace_t &trace )
 {
 	// Trace down to the stand position and see if we can stand.
 	Vector vecEnd( mv->GetAbsOrigin() );
-	vecEnd.z -= 36.0f;						// This will have to change if bounding hull change!
+	vecEnd.z -= 18.0f;						// This will have to change if bounding hull change!
 	TracePlayerBBox( mv->GetAbsOrigin(), vecEnd, PlayerSolidMask(), COLLISION_GROUP_PLAYER_MOVEMENT, trace );
 	if ( trace.fraction < 1.0f )
 	{
 		// Find the endpoint.
-		vecEnd.z = mv->GetAbsOrigin().z + ( -36.0f * trace.fraction );
+		vecEnd.z = mv->GetAbsOrigin().z + ( -18.0f * trace.fraction );
 
 		// Test a normal hull.
 		trace_t traceUp;
@@ -4226,19 +4226,19 @@ void CGameMovement::Duck( void )
 		// UNDUCK (or attempt to...)
 		else
 		{
-			if ( player->m_Local.m_bInDuckJump )
+			if (player->m_Local.m_bInDuckJump)
 			{
 				// Check for a crouch override.
-   				if ( !( mv->m_nButtons & IN_DUCK ) )
+				if (!(mv->m_nButtons & IN_DUCK))
 				{
 					trace_t trace;
-					if ( CanUnDuckJump( trace ) )
+					if (CanUnDuckJump(trace))
 					{
-						FinishUnDuckJump( trace );
+						FinishUnDuckJump(trace);
 
-						if ( trace.fraction < 1.0f )
+						if (trace.fraction < 1.0f)
 						{
-							player->m_Local.m_flDuckJumpTime = ( GAMEMOVEMENT_TIME_TO_UNDUCK * ( 1.0f - trace.fraction ) ) + GAMEMOVEMENT_TIME_TO_UNDUCK_INV;
+							player->m_Local.m_flDuckJumpTime = (GAMEMOVEMENT_TIME_TO_UNDUCK * (1.0f - trace.fraction)) + GAMEMOVEMENT_TIME_TO_UNDUCK_INV;
 						}
 					}
 				}
@@ -4248,8 +4248,9 @@ void CGameMovement::Duck( void )
 				}
 			}
 
-			if ( bDuckJumpTime )
+			if (bDuckJumpTime)
 				return;
+				
 
 			// Try to unduck unless automovement is not allowed
 			// NOTE: When not onground, you can always unduck

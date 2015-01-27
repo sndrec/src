@@ -36,7 +36,7 @@ static void FovChanged_Callback( IConVar *pConVar, const char *pOldString, float
 	}
 }
 
-static ConVar fov_watcher( "_fov", "0", 0, "Automates fov command to server.", FovChanged_Callback );
+static ConVar fov_watcher( "_fov", "110", 0, "Automates fov command to server.", FovChanged_Callback );
 
 //-----------------------------------------------------------------------------
 // Purpose: Think
