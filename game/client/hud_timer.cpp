@@ -240,7 +240,7 @@ void CHudTimer::MsgFunc_BlaTimer_StateChange(bf_read &msg)
 
 void CHudTimer::Paint(void)
 {
-	m_flSecondsTime = totalTicks * 0.015;
+	m_flSecondsTime = totalTicks * 0.010;
 	int hours = (int)(m_flSecondsTime / 3600.0f);
 	int minutes = (int)(((m_flSecondsTime / 3600.0f) - hours) * 60.0f);
 	int seconds = (int)(((((m_flSecondsTime / 3600.0f) - hours) * 60.0f) - minutes) * 60.0f);

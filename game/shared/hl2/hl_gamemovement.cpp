@@ -1146,6 +1146,342 @@ bool CHL2GameMovement::CanAccelerate()
 	return true;
 }
 
+bool CHL2GameMovement::CheckJumpButton()
+{
+	CHL2_Player *m_pHL2Player = GetHL2Player();
+
+	Assert(m_pHL2Player);
+
+	if (m_pHL2Player->pl.deadflag)
+	{
+		mv->m_nOldButtons |= IN_JUMP;   // don't jump again until released
+		return false;
+	}
+
+	// See if we are waterjumping.  If so, decrement count and return.
+	if (m_pHL2Player->m_flWaterJumpTime)
+	{
+		m_pHL2Player->m_flWaterJumpTime -= gpGlobals->frametime;
+		if (m_pHL2Player->m_flWaterJumpTime < 0)
+			m_pHL2Player->m_flWaterJumpTime = 0;
+
+		return false;
+	}
+
+	// If we are in the water most of the way...
+	if (m_pHL2Player->GetWaterLevel() >= 2)
+	{
+		// swimming, not jumping
+		SetGroundEntity(NULL);
+
+		if (m_pHL2Player->GetWaterType() == CONTENTS_WATER)    // We move up a certain amount
+			mv->m_vecVelocity[2] = 100;
+		else if (m_pHL2Player->GetWaterType() == CONTENTS_SLIME)
+			mv->m_vecVelocity[2] = 80;
+
+		// play swiming sound
+		if (m_pHL2Player->m_flSwimSoundTime <= 0)
+		{
+			// Don't play sound again for 1 second
+			m_pHL2Player->m_flSwimSoundTime = 1000;
+			PlaySwimSound();
+		}
+
+		return false;
+	}
+
+	// No more effect
+	if (m_pHL2Player->GetGroundEntity() == NULL)
+	{
+		mv->m_nOldButtons |= IN_JUMP;
+		return false;           // in air, so no effect
+	}
+
+//	if (mv->m_nOldButtons & IN_JUMP)
+//		return false;           // don't pogo stick
+
+	// In the air now.
+	SetGroundEntity(NULL);
+
+	m_pHL2Player->PlayStepSound(mv->m_vecAbsOrigin, player->GetSurfaceData(), 1.0, true);
+
+	MoveHelper()->PlayerSetAnimation(PLAYER_JUMP);
+
+	float flGroundFactor = 1.0f;
+	if (player->GetSurfaceData())
+	{
+		flGroundFactor = 1.0;//player->GetSurfaceData()->game.jumpFactor;
+	}
+
+	// Acclerate upward
+	// If we are ducking...
+	float startz = mv->m_vecVelocity[2];
+	mv->m_vecVelocity[2] += flGroundFactor * sqrt(2 * 800 * 45.0);  // 2 * gravity * height
+	FinishGravity();
+
+	mv->m_outWishVel.z += mv->m_vecVelocity[2] - startz;
+	mv->m_outStepHeight += 0.1f;
+
+	// Flag that we jumped.
+	mv->m_nOldButtons |= IN_JUMP;   // don't jump again until released
+	return true;
+}
+
+bool CHL2GameMovement::CanUnduck()
+{
+	int i;
+	trace_t trace;
+	Vector newOrigin;
+
+	VectorCopy(mv->m_vecAbsOrigin, newOrigin);
+
+	if (player->GetGroundEntity() != NULL)
+	{
+		for (i = 0; i < 3; i++)
+		{
+			newOrigin[i] += (VEC_DUCK_HULL_MIN[i] - VEC_HULL_MIN[i]);
+		}
+	}
+	else
+	{
+		// If in air and letting go of crouch, make sure we can offset origin to make
+		//  up for uncrouching
+		Vector hullSizeNormal = VEC_HULL_MAX - VEC_HULL_MIN;
+		Vector hullSizeCrouch = VEC_DUCK_HULL_MAX - VEC_DUCK_HULL_MIN;
+
+		Vector viewDelta = -0.5f * (hullSizeNormal - hullSizeCrouch);
+
+		VectorAdd(newOrigin, viewDelta, newOrigin);
+	}
+
+	bool saveducked = player->m_Local.m_bDucked;
+	player->m_Local.m_bDucked = false;
+	TracePlayerBBox(mv->m_vecAbsOrigin, newOrigin, MASK_PLAYERSOLID, COLLISION_GROUP_PLAYER_MOVEMENT, trace);
+	player->m_Local.m_bDucked = saveducked;
+	if (trace.startsolid || (trace.fraction != 1.0f))
+		return false;
+
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Stop ducking
+//-----------------------------------------------------------------------------
+void CHL2GameMovement::FinishUnDuck(void)
+{
+	int i;
+	trace_t trace;
+	Vector newOrigin;
+
+	VectorCopy(mv->m_vecAbsOrigin, newOrigin);
+
+	if (player->GetGroundEntity() != NULL)
+	{
+		for (i = 0; i < 3; i++)
+		{
+			newOrigin[i] += (VEC_DUCK_HULL_MIN[i] - VEC_HULL_MIN[i]);
+		}
+	}
+	else
+	{
+		// If in air an letting go of croush, make sure we can offset origin to make
+		//  up for uncrouching
+		Vector hullSizeNormal = VEC_HULL_MAX - VEC_HULL_MIN;
+		Vector hullSizeCrouch = VEC_DUCK_HULL_MAX - VEC_DUCK_HULL_MIN;
+
+		Vector viewDelta = -0.5f * (hullSizeNormal - hullSizeCrouch);
+
+		VectorAdd(newOrigin, viewDelta, newOrigin);
+	}
+
+	player->m_Local.m_bDucked = false;
+	player->RemoveFlag(FL_DUCKING);
+	player->m_Local.m_bDucking = false;
+	player->SetViewOffset(GetPlayerViewOffset(false));
+	player->m_Local.m_flDucktime = 0;
+
+	VectorCopy(newOrigin, mv->m_vecAbsOrigin);
+
+	// Recategorize position since ducking can change origin
+	CategorizePosition();
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Finish ducking
+//-----------------------------------------------------------------------------
+void CHL2GameMovement::FinishDuck(void)
+{
+	int i;
+
+	Vector hullSizeNormal = VEC_HULL_MAX - VEC_HULL_MIN;
+	Vector hullSizeCrouch = VEC_DUCK_HULL_MAX - VEC_DUCK_HULL_MIN;
+
+	Vector viewDelta = 0.5f * (hullSizeNormal - hullSizeCrouch);
+
+	player->m_Local.m_bDucked = true;
+	player->SetViewOffset(GetPlayerViewOffset(true));
+	player->AddFlag(FL_DUCKING);
+	player->m_Local.m_bDucking = false;
+
+	// HACKHACK - Fudge for collision bug - no time to fix this properly
+	if (player->GetGroundEntity() != NULL)
+	{
+		for (i = 0; i < 3; i++)
+		{
+			mv->m_vecAbsOrigin[i] -= (VEC_DUCK_HULL_MIN[i] - VEC_HULL_MIN[i]);
+		}
+	}
+	else
+	{
+		VectorAdd(mv->m_vecAbsOrigin, viewDelta, mv->m_vecAbsOrigin);
+	}
+
+	// See if we are stuck?
+	FixPlayerCrouchStuck(true);
+
+	// Recategorize position since ducking can change origin
+	CategorizePosition();
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: See if duck button is pressed and do the appropriate things
+//-----------------------------------------------------------------------------
+void CHL2GameMovement::Duck(void)
+{
+	int buttonsChanged = (mv->m_nOldButtons ^ mv->m_nButtons);      // These buttons have changed this frame
+	int buttonsPressed = buttonsChanged & mv->m_nButtons;                   // The changed ones still down are "pressed"
+	int buttonsReleased = buttonsChanged & mv->m_nOldButtons;               // The changed ones which were previously down are "released"
+
+	// Check to see if we are in the air.
+	bool bInAir = (player->GetGroundEntity() == NULL);
+	bool bInDuck = (player->GetFlags() & FL_DUCKING) ? true : false;
+
+	if (mv->m_nButtons & IN_DUCK)
+	{
+		mv->m_nOldButtons |= IN_DUCK;
+	}
+	else
+	{
+		mv->m_nOldButtons &= ~IN_DUCK;
+	}
+
+	// Handle death.
+	if (IsDead())
+	{
+		if (bInDuck)
+		{
+			// Unduck
+			FinishUnDuck();
+		}
+		return;
+	}
+
+	HandleDuckingSpeedCrop();
+
+	// If the player is holding down the duck button, the player is in duck transition, ducking, or duck-jumping.
+	if ((mv->m_nButtons & IN_DUCK) || player->m_Local.m_bDucking || bInDuck)
+	{
+		if ((mv->m_nButtons & IN_DUCK))
+		{
+			// Have the duck button pressed, but the player currently isn't in the duck position.
+			if ((buttonsPressed & IN_DUCK) && !bInDuck)
+			{
+				// Use 1 second so super long jump will work
+				player->m_Local.m_flDucktime = GAMEMOVEMENT_DUCK_TIME;
+				player->m_Local.m_bDucking = true;
+			}
+
+			// The player is in duck transition and not duck-jumping.
+			if (player->m_Local.m_bDucking)
+			{
+				float flDuckMilliseconds = max(0.0f, GAMEMOVEMENT_DUCK_TIME - (float)player->m_Local.m_flDucktime);
+				float flDuckSeconds = flDuckMilliseconds / GAMEMOVEMENT_DUCK_TIME;
+
+				// Finish in duck transition when transition time is over, in "duck", in air.
+				if ((flDuckSeconds > TIME_TO_DUCK) || bInDuck || bInAir)
+				{
+					FinishDuck();
+				}
+				else
+				{
+					// Calc parametric time
+					float flDuckFraction = SimpleSpline(flDuckSeconds / TIME_TO_DUCK);
+					SetDuckedEyeOffset(flDuckFraction);
+				}
+			}
+		}
+		else
+		{
+			// Try to unduck unless automovement is not allowed
+			// NOTE: When not onground, you can always unduck
+			if (player->m_Local.m_bAllowAutoMovement || bInAir)
+			{
+				if ((buttonsReleased & IN_DUCK) && bInDuck)
+				{
+					// Use 1 second so super long jump will work
+					player->m_Local.m_flDucktime = GAMEMOVEMENT_DUCK_TIME;
+				}
+
+				// Check to see if we are capable of unducking.
+				if (CanUnduck())
+				{
+					// or unducking
+					if ((player->m_Local.m_bDucking || player->m_Local.m_bDucked))
+					{
+						float flDuckMilliseconds = max(0.0f, GAMEMOVEMENT_DUCK_TIME - (float)player->m_Local.m_flDucktime);
+						float flDuckSeconds = flDuckMilliseconds / GAMEMOVEMENT_DUCK_TIME;
+
+						// Finish ducking immediately if duck time is over or not on ground
+						if (flDuckSeconds > TIME_TO_UNDUCK || (bInAir))
+						{
+							FinishUnDuck();
+						}
+						else
+						{
+							// Calc parametric time
+							float flDuckFraction = SimpleSpline(1.0f - (flDuckSeconds / TIME_TO_UNDUCK));
+							SetDuckedEyeOffset(flDuckFraction);
+							player->m_Local.m_bDucking = true;
+						}
+					}
+				}
+				else
+				{
+					// Still under something where we can't unduck, so make sure we reset this timer so
+					//  that we'll unduck once we exit the tunnel, etc.
+					player->m_Local.m_flDucktime = GAMEMOVEMENT_DUCK_TIME;
+					SetDuckedEyeOffset(1.0f);
+				}
+			}
+		}
+	}
+}
+
+void CHL2GameMovement::HandleDuckingSpeedCrop()
+{
+	if (!m_bSpeedCropped && (player->GetFlags() & FL_DUCKING))
+	{
+		float frac = 0.33333333f;
+		mv->m_flForwardMove *= frac;
+		mv->m_flSideMove *= frac;
+		mv->m_flUpMove *= frac;
+		m_bSpeedCropped = true;
+	}
+}
+
+void CHL2GameMovement::CheckParameters(void)
+{
+	if (mv->m_nButtons & IN_SPEED)
+	{
+		mv->m_flClientMaxSpeed = 100;
+	}
+	else
+	{
+		mv->m_flClientMaxSpeed = mv->m_flMaxSpeed;
+	}
+
+	BaseClass::CheckParameters();
+}
 
 #ifndef PORTAL	// Portal inherits from this but needs to declare it's own global interface
 	// Expose our interface.
