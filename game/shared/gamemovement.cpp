@@ -1031,6 +1031,8 @@ void CGameMovement::ProcessMovement( CBasePlayer *pPlayer, CMoveData *pMove )
 
 	FinishMove();
 
+	//DevMsg("Position: %f %f %f\n", mv->GetAbsOrigin().x, mv->GetAbsOrigin().y, mv->GetAbsOrigin().z);
+
 	DiffPrint( "end %f %f %f", mv->GetAbsOrigin().x, mv->GetAbsOrigin().y, mv->GetAbsOrigin().z );
 
 	// CheckV( player->CurrentCommandNumber(), "EndPos", mv->GetAbsOrigin() );

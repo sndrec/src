@@ -1241,6 +1241,9 @@ bool CHL2GameMovement::CanUnduck()
 		{
 			newOrigin[i] += (VEC_DUCK_HULL_MIN[i] - VEC_HULL_MIN[i]);
 		}
+
+		if (!player->m_Local.m_bDucked)
+			newOrigin[2] += 32;
 	}
 	else
 	{
@@ -1438,10 +1441,26 @@ void CHL2GameMovement::Duck(void)
 						}
 						else
 						{
-							// Calc parametric time
-							float flDuckFraction = SimpleSpline(1.0f - (flDuckSeconds / TIME_TO_UNDUCK));
-							SetDuckedEyeOffset(flDuckFraction);
-							player->m_Local.m_bDucking = true;
+							if (player->m_Local.m_bDucked)
+							{
+								// Calc parametric time
+								float flDuckFraction = SimpleSpline(1.0f - (flDuckSeconds / TIME_TO_UNDUCK));
+								SetDuckedEyeOffset(flDuckFraction);
+								player->m_Local.m_bDucking = true;
+							}
+							else
+							{
+								player->m_Local.m_bDucked = false;
+								player->RemoveFlag(FL_DUCKING);
+								player->m_Local.m_bDucking = false;
+								player->SetViewOffset(GetPlayerViewOffset(false));
+								player->m_Local.m_flDucktime = 0;
+
+								mv->m_vecAbsOrigin[2] += 32;
+
+								// Recategorize position since ducking can change origin
+								CategorizePosition();
+							}
 						}
 					}
 				}
