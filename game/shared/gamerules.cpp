@@ -39,6 +39,10 @@ ConVar sk_autoaim_mode( "sk_autoaim_mode", "1", FCVAR_ARCHIVE | FCVAR_REPLICATED
 static CViewVectors g_DefaultViewVectors(
 	Vector( 0, 0, 64 ),			//VEC_VIEW (m_vView)
 								
+
+
+
+
 	Vector(-16, -16, 0 ),		//VEC_HULL_MIN (m_vHullMin)
 	Vector( 16,  16,  72 ),		//VEC_HULL_MAX (m_vHullMax)
 													
